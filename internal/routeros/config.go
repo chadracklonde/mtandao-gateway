@@ -35,7 +35,7 @@ func ReadConfig(path string) (Config, error) {
 	if cfg.Address == "" || cfg.Username == "" || cfg.Password == "" { return Config{}, ErrInvalidConfig }
 	if cfg.TimeoutSeconds == 0 { cfg.TimeoutSeconds = 8 }
 	if cfg.TimeoutSeconds < 1 || cfg.TimeoutSeconds > 60 { return Config{}, ErrInvalidConfig }
-	if err := validateLocalAddress(cfg.Address); err != nil { return Config{}, ErrInvalidConfig }
+	if err := ValidateLocalAddress(cfg.Address); err != nil { return Config{}, ErrInvalidConfig }
 	return cfg, nil
 }
 
