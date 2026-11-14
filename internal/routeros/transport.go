@@ -55,6 +55,8 @@ func DialTLS(ctx context.Context, cfg TLSConfig) (*Transport, error) {
 		return nil, fmt.Errorf("RouterOS authentication failed: %w", err)
 	}
 	_ = conn.SetDeadline(time.Time{})
+	// Async mode is required by this library for RunContext cancellation to work.
+	_ = client.Async()
 	return &Transport{client: client, timeout: cfg.Timeout}, nil
 }
 
