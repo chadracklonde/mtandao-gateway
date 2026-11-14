@@ -52,7 +52,7 @@ type Interface struct {
 }
 
 func (c *Client) SystemResource(ctx context.Context) (Resource, error) {
-	rows, err := c.executor.Execute(ctx, []string{"/system/resource/print", "=.proplist=uptime,version,board-name,architecture-name,cpu,cpu-count, total-memory,free-memory"})
+	rows, err := c.executor.Execute(ctx, []string{"/system/resource/print", "=.proplist=uptime,version,board-name,architecture-name,cpu,cpu-count,total-memory,free-memory"})
 	if err != nil { return Resource{}, err }
 	if len(rows) != 1 { return Resource{}, ErrUnexpectedResponse }
 	r := rows[0]
