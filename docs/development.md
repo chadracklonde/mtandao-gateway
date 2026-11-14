@@ -32,3 +32,8 @@ Voir [Connexion Cloud](cloud-connection.md) pour la configuration.
 4. Exécution de `health.check` sur routeur de test.
 5. Réception et acquittement idempotents.
 6. Journal local consultable et expurgé.
+
+
+## RouterOS local
+
+Voir [la configuration RouterOS API sur TLS](routeros.md). Le transport n'accepte que des IP locales et des opérations de lecture explicitement autorisées. Valider le certificat TLS et les droits du compte dédié sur un routeur de laboratoire avant toute utilisation réelle.
