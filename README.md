@@ -25,3 +25,13 @@ Les secrets RouterOS sont conservés localement dans un stockage protégé et ne
 ## État
 
 Phase initiale : contrats et architecture. Aucune commande réelle n'est encore exécutée sur un routeur. Les opérations RouterOS devront être développées et testées sur un équipement de laboratoire avant toute utilisation de production.
+
+
+## Documentation
+
+- [Cahier des charges Mtandao Gateway](docs/cahier-des-charges.md) — exigences fonctionnelles, sécurité, protocole et critères d'acceptation.
+- [Architecture](docs/architecture.md).
+- [Protocole de commande](docs/protocol.md).
+- [Guide de développement](docs/development.md).
+- [Cahier des charges Mtandao Cloud](https://github.com/chadracklonde/mtandao-cloud/blob/main/docs/cahier-des-charges.md).
+- [Cahier des charges Mtandao Ticket](https://github.com/chadracklonde/mtandao-ticket-app/blob/main/docs/cahier-des-charges.md).
