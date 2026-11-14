@@ -23,3 +23,27 @@ Le transport refuse les noms DNS et les adresses IP publiques. Il accepte unique
 Le transport utilise TLS avec une version minimale TLS 1.2 et vérifie le certificat du serveur. Aucun mode de désactivation de vérification TLS n'est fourni. Les identifiants sont obligatoires et ne doivent jamais être inscrits dans le dépôt ou les journaux.
 
 Les tests actuels utilisent un client simulé. Une validation sur un MikroTik de laboratoire reste nécessaire avant tout déploiement. Les opérations d'écriture, la gestion des utilisateurs Hotspot et l'exécution de commandes reçues du Cloud ne sont pas activées.
+
+## Configuration du Gateway
+
+Créer un fichier JSON local, appartenant à l'utilisateur système du Gateway et accessible uniquement à cet utilisateur (mode 0600) :
+
+```json
+{
+  "address": "192.168.88.1:8729",
+  "username": "mtandao-gateway",
+  "password": "REMPLACER_PAR_UN_SECRET",
+  "timeout_seconds": 8
+}
+```
+
+Protéger le répertoire parent (mode 0700), puis définir :
+
+```sh
+export ROUTEROS_CONFIG_FILE="/etc/mtandao-gateway/router.json"
+export ROUTEROS_POLL_INTERVAL="30"
+```
+
+Le Gateway actualise les informations en lecture seule toutes les 30 secondes par défaut. Le point local `GET /health` inclut un instantané RouterOS sans exposer l'adresse, le nom d'utilisateur ni le mot de passe. En cas d'échec, l'état indique seulement que le routeur est indisponible.
+
+Le fichier est refusé s'il s'agit d'un lien symbolique, s'il n'est pas régulier, si ses permissions sont trop ouvertes ou si l'adresse cible n'est pas une IP locale. Ne pas placer ce fichier dans Git.
