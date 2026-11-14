@@ -105,6 +105,9 @@ func enrollGateway(ctx context.Context, logger *log.Logger) error {
 	if err := cloud.WriteSecretFile(tokenPath, result.GatewayToken); err != nil {
 		return fmt.Errorf("Cloud enrollment succeeded but permanent token could not be stored securely: %w", err)
 	}
+	if err := os.Remove(enrollmentPath); err != nil {
+		logger.Printf("WARNING: enrollment token file could not be removed; delete it securely: %s", enrollmentPath)
+	}
 	logger.Printf("Gateway enrolled successfully: router=%s site=%s", result.RouterID, result.SiteID)
 	logger.Printf("Permanent credential stored in %s; keep this file private", tokenAbs)
 	return nil
