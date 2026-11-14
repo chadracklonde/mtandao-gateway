@@ -42,3 +42,12 @@ func TestDialRejectsPublicAndHostnameTargets(t *testing.T) {
 		if !errors.Is(err,ErrNonLocalTarget) { t.Fatalf("%s: got %v",addr,err) }
 	}
 }
+
+func TestTransportRejectsUnapprovedProperties(t *testing.T) {
+	f:=&apiFake{}
+	tr,_:=NewTransport(f,0)
+	for _,arg:=range []string{"=.proplist=password","=.proplist=name,secret","=.proplist=name,name","=.proplist="} {
+		if _,err:=tr.Execute(context.Background(),[]string{"/system/identity/print",arg}); err==nil { t.Fatalf("accepted %q",arg) }
+	}
+	if len(f.words)!=0 { t.Fatal("invalid property list reached API client") }
+}
