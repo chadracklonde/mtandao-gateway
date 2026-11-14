@@ -23,6 +23,7 @@ Passerelle locale entre Mtandao Cloud et les routeurs MikroTik RouterOS.
 - Client HTTP sortant pour le heartbeat Mtandao Cloud.
 - Interface RouterOS en lecture seule (ressources système, identité et interfaces), testée avec transport simulé.
 - Transport RouterOS API sur TLS, limité aux adresses IP privées, loopback ou link-local et à trois commandes de lecture fixes.
+- Configuration RouterOS locale protégée (JSON, permissions strictes) et surveillance périodique en lecture seule exposée dans `/health`.
 - Authentification par jeton bearer conservé dans un fichier protégé.
 - Reconnexion avec backoff exponentiel et arrêt contrôlé.
 
