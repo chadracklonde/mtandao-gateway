@@ -2,7 +2,8 @@
 
 ## Prérequis
 
-Les choix de langage et de framework de la passerelle seront arrêtés après un prototype de compatibilité RouterOS et une comparaison des contraintes Linux/Android.
+- Go 1.22 ou version compatible.
+- Accès à un routeur de laboratoire pour les futurs tests RouterOS.
 
 ## Qualité attendue
 
@@ -12,6 +13,16 @@ Les choix de langage et de framework de la passerelle seront arrêtés après un
 - Tests réseau interrompu/repris.
 - Analyse statique et dépendances verrouillées.
 - Aucune donnée sensible dans les fixtures ou logs.
+
+## Étapes réalisées
+
+- Squelette du service Go et endpoint local `GET /health`.
+- Client HTTP Cloud pour `POST /v1/gateway/heartbeat`.
+- Vérification HTTPS en production, jeton bearer au format attendu et réponse Cloud.
+- Heartbeat immédiat, intervalle configurable, reprise exponentielle avec jitter.
+- Arrêt contrôlé du worker et protection des permissions du fichier de jeton.
+
+Voir [Connexion Cloud](cloud-connection.md) pour la configuration.
 
 ## Critères de première version
 
