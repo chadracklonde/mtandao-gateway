@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -24,6 +25,16 @@ type healthResponse struct {
 
 func main() {
 	logger := log.New(os.Stdout, "mtandao-gateway ", log.LstdFlags|log.LUTC)
+	if len(os.Args) > 1 {
+		if os.Args[1] == "enroll" && len(os.Args) == 2 {
+			if err := enrollGateway(context.Background(), logger); err != nil {
+				logger.Fatal(err)
+			}
+			return
+		}
+		logger.Fatal("usage: gateway [enroll]")
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -59,6 +70,46 @@ func main() {
 	}
 }
 
+func enrollGateway(ctx context.Context, logger *log.Logger) error {
+	baseURL := strings.TrimSpace(os.Getenv("CLOUD_API_URL"))
+	enrollmentPath := strings.TrimSpace(os.Getenv("GATEWAY_ENROLLMENT_TOKEN_FILE"))
+	tokenPath := strings.TrimSpace(os.Getenv("GATEWAY_TOKEN_FILE"))
+	if baseURL == "" || enrollmentPath == "" || tokenPath == "" {
+		return errors.New("CLOUD_API_URL, GATEWAY_ENROLLMENT_TOKEN_FILE and GATEWAY_TOKEN_FILE are required for enrollment")
+	}
+	enrollmentAbs, err := filepath.Abs(enrollmentPath)
+	if err != nil {
+		return fmt.Errorf("resolve enrollment token path: %w", err)
+	}
+	tokenAbs, err := filepath.Abs(tokenPath)
+	if err != nil {
+		return fmt.Errorf("resolve Gateway token path: %w", err)
+	}
+	if enrollmentAbs == tokenAbs {
+		return errors.New("enrollment token file and permanent Gateway token file must be different")
+	}
+	if _, err := os.Lstat(tokenPath); err == nil {
+		return errors.New("Gateway token file already exists; refusing to consume another enrollment token")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect Gateway token destination: %w", err)
+	}
+
+	enrollmentToken, err := cloud.ReadSecretFile(enrollmentPath)
+	if err != nil {
+		return fmt.Errorf("read enrollment token: %w", err)
+	}
+	result, err := cloud.RedeemEnrollment(ctx, baseURL, enrollmentToken, nil)
+	if err != nil {
+		return fmt.Errorf("Cloud enrollment failed: %w", err)
+	}
+	if err := cloud.WriteSecretFile(tokenPath, result.GatewayToken); err != nil {
+		return fmt.Errorf("Cloud enrollment succeeded but permanent token could not be stored securely: %w", err)
+	}
+	logger.Printf("Gateway enrolled successfully: router=%s site=%s", result.RouterID, result.SiteID)
+	logger.Printf("Permanent credential stored in %s; keep this file private", tokenAbs)
+	return nil
+}
+
 func startCloudHeartbeat(ctx context.Context, logger *log.Logger) error {
 	baseURL := strings.TrimSpace(os.Getenv("CLOUD_API_URL"))
 	tokenPath := strings.TrimSpace(os.Getenv("GATEWAY_TOKEN_FILE"))
@@ -70,21 +121,10 @@ func startCloudHeartbeat(ctx context.Context, logger *log.Logger) error {
 		return errors.New("CLOUD_API_URL and GATEWAY_TOKEN_FILE must be configured together")
 	}
 
-	info, err := os.Stat(tokenPath)
+	token, err := cloud.ReadSecretFile(tokenPath)
 	if err != nil {
-		return fmt.Errorf("read Gateway token file metadata: %w", err)
+		return fmt.Errorf("read Gateway token: %w", err)
 	}
-	if !info.Mode().IsRegular() {
-		return errors.New("Gateway token path must be a regular file")
-	}
-	if info.Mode().Perm()&0077 != 0 {
-		return errors.New("Gateway token file permissions are too broad; use chmod 600")
-	}
-	tokenBytes, err := os.ReadFile(tokenPath)
-	if err != nil {
-		return fmt.Errorf("read Gateway token file: %w", err)
-	}
-	token := strings.TrimSpace(string(tokenBytes))
 	client, err := cloud.NewClient(baseURL, token, nil)
 	if err != nil {
 		return fmt.Errorf("configure Cloud client: %w", err)
