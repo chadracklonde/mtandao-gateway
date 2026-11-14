@@ -40,11 +40,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := startCloudHeartbeat(ctx, logger); err != nil {
-		logger.Fatal(err)
-	}
 	routerMonitor, err := startRouterMonitor(ctx, logger)
 	if err != nil { logger.Fatal(err) }
+	if err := startCloudHeartbeat(ctx, logger, routerConnectionStatus(routerMonitor)); err != nil {
+		logger.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
@@ -117,7 +117,7 @@ func enrollGateway(ctx context.Context, logger *log.Logger) error {
 	return nil
 }
 
-func startCloudHeartbeat(ctx context.Context, logger *log.Logger) error {
+func startCloudHeartbeat(ctx context.Context, logger *log.Logger, routerStatus func() string) error {
 	baseURL := strings.TrimSpace(os.Getenv("CLOUD_API_URL"))
 	tokenPath := strings.TrimSpace(os.Getenv("GATEWAY_TOKEN_FILE"))
 	if baseURL == "" && tokenPath == "" {
@@ -145,7 +145,7 @@ func startCloudHeartbeat(ctx context.Context, logger *log.Logger) error {
 		}
 		interval = time.Duration(seconds) * time.Second
 	}
-	go cloud.RunHeartbeat(ctx, client, interval, logger)
+	go cloud.RunHeartbeatWithRouterStatus(ctx, client, interval, logger, routerStatus)
 	return nil
 }
 
@@ -175,4 +175,14 @@ func routerSnapshot(monitor *routeros.Monitor) *routeros.Snapshot {
 	if monitor == nil { return nil }
 	snapshot := monitor.Snapshot()
 	return &snapshot
+}
+
+func routerConnectionStatus(monitor *routeros.Monitor) func() string {
+	return func() string {
+		if monitor == nil { return "unknown" }
+		snapshot := monitor.Snapshot()
+		if snapshot.CheckedAt.IsZero() { return "unknown" }
+		if snapshot.Connected { return "online" }
+		return "unavailable"
+	}
 }
