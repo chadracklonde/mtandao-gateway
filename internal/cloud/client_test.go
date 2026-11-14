@@ -21,7 +21,7 @@ func TestHeartbeatSendsBearerAndDecodesResponse(t *testing.T) {
 			t.Fatalf("unexpected authorization header")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"routerId":"router-1","siteId":"site-1","status":"online","lastSeenAt":"2026-11-14T10:00:00Z"}`))
+		_, _ = w.Write([]byte(`{"routerId":"router-1","siteId":"site-1","status":"online","lastSeenAt":"2026-11-14T10:00:00Z","routerConnectionStatus":"unknown","routerLastSeenAt":null}`))
 	}))
 	defer server.Close()
 
@@ -29,7 +29,7 @@ func TestHeartbeatSendsBearerAndDecodesResponse(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	got, err := client.Heartbeat(context.Background())
 	if err != nil { t.Fatal(err) }
-	if got.RouterID != "router-1" || got.SiteID != "site-1" || got.Status != "online" {
+	if got.RouterID != "router-1" || got.SiteID != "site-1" || got.Status != "online" || got.RouterConnectionStatus != "unknown" {
 		t.Fatalf("unexpected heartbeat response: %+v", got)
 	}
 }
