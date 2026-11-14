@@ -38,7 +38,8 @@ func DialTLS(ctx context.Context, cfg TLSConfig) (*Transport, error) {
 		return nil, ErrNonLocalTarget
 	}
 	if port == "" { return nil, errors.New("RouterOS port is required") }
-	if _, err := strconv.Atoi(port); err != nil { return nil, errors.New("invalid RouterOS port") }
+	portNumber, portErr := strconv.Atoi(port)
+	if portErr != nil || portNumber < 1 || portNumber > 65535 { return nil, errors.New("invalid RouterOS port") }
 	if cfg.Username == "" || cfg.Password == "" { return nil, errors.New("RouterOS credentials are required") }
 	if cfg.Timeout <= 0 { cfg.Timeout = 8 * time.Second }
 
@@ -82,7 +83,7 @@ func (t *Transport) Execute(ctx context.Context, words []string) ([]map[string]s
 		"/system/identity/print": true,
 		"/interface/print": true,
 	}
-	if !allowed[words[0]] || !strings.HasPrefix(words[1], "=.proplist=") {
+	if !allowed[words[0]] || !validPropertyList(words[0], words[1]) {
 		return nil, errors.New("unsupported RouterOS request")
 	}
 	ctx, cancel := context.WithTimeout(ctx, t.timeout)
@@ -97,4 +98,21 @@ func (t *Transport) Execute(ctx context.Context, words []string) ([]map[string]s
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+func validPropertyList(command, argument string) bool {
+	if !strings.HasPrefix(argument, "=.proplist=") { return false }
+	allowed := map[string]map[string]bool{
+		"/system/resource/print": {"uptime":true,"version":true,"board-name":true,"architecture-name":true,"cpu":true,"cpu-count":true,"total-memory":true,"free-memory":true},
+		"/system/identity/print": {"name":true},
+		"/interface/print": {"name":true,"type":true,"running":true,"disabled":true},
+	}
+	fields := strings.Split(strings.TrimPrefix(argument, "=.proplist="), ",")
+	if len(fields)==0 || len(fields)>8 { return false }
+	seen := map[string]bool{}
+	for _, field := range fields {
+		if !allowed[command][field] || seen[field] { return false }
+		seen[field]=true
+	}
+	return true
 }
