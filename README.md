@@ -18,6 +18,8 @@ Passerelle locale entre Mtandao Cloud et les routeurs MikroTik RouterOS.
 ## Fonctionnalités présentes
 
 - Endpoint local `GET /health`.
+- Enrôlement Cloud via `gateway enroll` avec échange de jeton à usage unique.
+- Stockage atomique du jeton permanent (répertoire 0700, fichier 0600).
 - Client HTTP sortant pour le heartbeat Mtandao Cloud.
 - Authentification par jeton bearer conservé dans un fichier protégé.
 - Reconnexion avec backoff exponentiel et arrêt contrôlé.
@@ -32,7 +34,7 @@ Les secrets RouterOS sont conservés localement dans un stockage protégé et ne
 
 ## État
 
-Le client de heartbeat Cloud est implémenté. L'enrôlement initial depuis le binaire Go, la réception des commandes et l'exécution RouterOS restent à développer et tester sur un équipement de laboratoire. Le heartbeat confirme la connexion au Cloud, pas la disponibilité du routeur local.
+L'enrôlement CLI, le stockage protégé du jeton permanent et le client de heartbeat Cloud sont implémentés. La réception des commandes, leur authentification cryptographique et l'exécution RouterOS restent à développer et tester sur un équipement de laboratoire. Le heartbeat confirme la connexion au Cloud, pas la disponibilité du routeur local.
 
 ## Documentation
 
