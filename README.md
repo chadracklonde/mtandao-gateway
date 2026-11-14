@@ -22,6 +22,7 @@ Passerelle locale entre Mtandao Cloud et les routeurs MikroTik RouterOS.
 - Stockage atomique du jeton permanent (répertoire 0700, fichier 0600).
 - Client HTTP sortant pour le heartbeat Mtandao Cloud.
 - Interface RouterOS en lecture seule (ressources système, identité et interfaces), testée avec transport simulé.
+- Transport RouterOS API sur TLS, limité aux adresses IP privées, loopback ou link-local et à trois commandes de lecture fixes.
 - Authentification par jeton bearer conservé dans un fichier protégé.
 - Reconnexion avec backoff exponentiel et arrêt contrôlé.
 
@@ -35,7 +36,7 @@ Les secrets RouterOS sont conservés localement dans un stockage protégé et ne
 
 ## État
 
-L'enrôlement CLI, le stockage protégé du jeton permanent et le client de heartbeat Cloud sont implémentés. Le transport réseau RouterOS réel, la réception des commandes, leur authentification cryptographique et toute opération d'écriture restent à développer et tester sur un équipement de laboratoire. L'interface actuelle ne permet pas d'exécuter des commandes arbitraires. Le heartbeat confirme la connexion au Cloud, pas la disponibilité du routeur local.
+L'enrôlement CLI, le stockage protégé du jeton permanent et le client de heartbeat Cloud sont implémentés. Le transport TLS RouterOS API est implémenté, mais doit encore être validé sur un équipement de laboratoire avec un certificat approuvé. La réception des commandes, leur authentification cryptographique et toute opération d'écriture restent à développer. L'interface actuelle ne permet pas d'exécuter des commandes arbitraires. Le heartbeat confirme la connexion au Cloud, pas la disponibilité du routeur local.
 
 ## Documentation
 
