@@ -16,11 +16,13 @@ import (
 	"time"
 
 	"github.com/chadracklonde/mtandao-gateway/internal/cloud"
+	"github.com/chadracklonde/mtandao-gateway/internal/routeros"
 )
 
 type healthResponse struct {
 	Status  string `json:"status"`
 	Service string `json:"service"`
+	Router *routeros.Snapshot `json:"router,omitempty"`
 }
 
 func main() {
@@ -41,11 +43,13 @@ func main() {
 	if err := startCloudHeartbeat(ctx, logger); err != nil {
 		logger.Fatal(err)
 	}
+	routerMonitor, err := startRouterMonitor(ctx, logger)
+	if err != nil { logger.Fatal(err) }
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(healthResponse{Status: "ok", Service: "mtandao-gateway"})
+		_ = json.NewEncoder(w).Encode(healthResponse{Status: "ok", Service: "mtandao-gateway", Router: routerSnapshot(routerMonitor)})
 	})
 
 	addr := os.Getenv("GATEWAY_LISTEN_ADDR")
@@ -143,4 +147,32 @@ func startCloudHeartbeat(ctx context.Context, logger *log.Logger) error {
 	}
 	go cloud.RunHeartbeat(ctx, client, interval, logger)
 	return nil
+}
+
+func startRouterMonitor(ctx context.Context, logger *log.Logger) (*routeros.Monitor, error) {
+	configPath := strings.TrimSpace(os.Getenv("ROUTEROS_CONFIG_FILE"))
+	if configPath == "" {
+		logger.Printf("RouterOS monitoring disabled: ROUTEROS_CONFIG_FILE is not configured")
+		return nil, nil
+	}
+	cfg, err := routeros.ReadConfig(configPath)
+	if err != nil { return nil, fmt.Errorf("load RouterOS configuration: %w", err) }
+	interval := 30 * time.Second
+	if raw := strings.TrimSpace(os.Getenv("ROUTEROS_POLL_INTERVAL")); raw != "" {
+		seconds, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || seconds < 5 || seconds > 3600 {
+			return nil, errors.New("ROUTEROS_POLL_INTERVAL must be between 5 and 3600 seconds")
+		}
+		interval = time.Duration(seconds) * time.Second
+	}
+	monitor := routeros.NewMonitor()
+	go monitor.Run(ctx, cfg, interval)
+	logger.Printf("RouterOS read-only monitoring enabled")
+	return monitor, nil
+}
+
+func routerSnapshot(monitor *routeros.Monitor) *routeros.Snapshot {
+	if monitor == nil { return nil }
+	snapshot := monitor.Snapshot()
+	return &snapshot
 }
