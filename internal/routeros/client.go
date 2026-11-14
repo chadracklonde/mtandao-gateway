@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 )
 
@@ -96,5 +97,9 @@ func parseFlag(value string) bool {
 func ValidateLocalAddress(host string) error {
 	host = strings.TrimSpace(host)
 	if host == "" { return fmt.Errorf("RouterOS host is required") }
+	name, port, err := net.SplitHostPort(host)
+	if err != nil || port == "" { return ErrNonLocalTarget }
+	ip := net.ParseIP(name)
+	if ip == nil || !(ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()) { return ErrNonLocalTarget }
 	return nil
 }
