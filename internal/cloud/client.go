@@ -21,6 +21,8 @@ type HeartbeatResponse struct {
 	SiteID     string    `json:"siteId"`
 	Status     string    `json:"status"`
 	LastSeenAt time.Time `json:"lastSeenAt"`
+	RouterConnectionStatus string `json:"routerConnectionStatus"`
+	RouterLastSeenAt *time.Time `json:"routerLastSeenAt"`
 }
 
 type Client struct {
@@ -60,8 +62,14 @@ func NewClient(baseURL, token string, httpClient *http.Client) (*Client, error) 
 }
 
 func (c *Client) Heartbeat(ctx context.Context) (HeartbeatResponse, error) {
+	return c.HeartbeatWithRouterStatus(ctx, "unknown")
+}
+
+func (c *Client) HeartbeatWithRouterStatus(ctx context.Context, routerStatus string) (HeartbeatResponse, error) {
+	if routerStatus != "unknown" && routerStatus != "online" && routerStatus != "unavailable" { return HeartbeatResponse{}, errors.New("invalid RouterOS connection status") }
+	body, _ := json.Marshal(map[string]string{"routerConnectionStatus":routerStatus})
 	endpoint := c.baseURL + "/v1/gateway/heartbeat"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader([]byte("{}")))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return HeartbeatResponse{}, fmt.Errorf("create heartbeat request: %w", err)
 	}
@@ -85,7 +93,7 @@ func (c *Client) Heartbeat(ctx context.Context) (HeartbeatResponse, error) {
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&result); err != nil {
 		return HeartbeatResponse{}, fmt.Errorf("decode heartbeat response: %w", err)
 	}
-	if result.Status != "online" || result.RouterID == "" || result.SiteID == "" {
+	if result.Status != "online" || result.RouterID == "" || result.SiteID == "" || result.RouterConnectionStatus != routerStatus {
 		return HeartbeatResponse{}, errors.New("Cloud returned an invalid heartbeat response")
 	}
 	return result, nil
