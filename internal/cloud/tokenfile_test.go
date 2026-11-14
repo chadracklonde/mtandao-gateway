@@ -23,7 +23,9 @@ func TestWriteAndReadSecretFile(t *testing.T) {
 }
 
 func TestWriteSecretFileDoesNotOverwrite(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "gateway.token")
+	dir := filepath.Join(t.TempDir(), "secure")
+	if err := os.Mkdir(dir, 0700); err != nil { t.Fatal(err) }
+	path := filepath.Join(dir, "gateway.token")
 	if err := WriteSecretFile(path, testToken); err != nil { t.Fatal(err) }
 	if err := WriteSecretFile(path, strings.Repeat("a", 64)); err == nil { t.Fatal("expected existing token to be protected") }
 	got, err := ReadSecretFile(path)
