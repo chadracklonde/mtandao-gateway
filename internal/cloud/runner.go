@@ -6,11 +6,16 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"fmt"
 )
 
 // RunHeartbeat sends an immediate heartbeat and then retries with bounded
 // exponential backoff whenever the Cloud cannot be reached.
 func RunHeartbeat(ctx context.Context, client *Client, interval time.Duration, logger *log.Logger) {
+	RunHeartbeatWithRouterStatus(ctx, client, interval, logger, func() string { return "unknown" })
+}
+
+func RunHeartbeatWithRouterStatus(ctx context.Context, client *Client, interval time.Duration, logger *log.Logger, routerStatus func() string) {
 	if interval <= 0 {
 		interval = 60 * time.Second
 	}
@@ -22,7 +27,9 @@ func RunHeartbeat(ctx context.Context, client *Client, interval time.Duration, l
 
 	for {
 		requestCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
-		result, err := client.Heartbeat(requestCtx)
+		status := "unknown"
+		if routerStatus != nil { status = routerStatus() }
+		result, err := client.HeartbeatWithRouterStatus(requestCtx, status)
 		cancel()
 		if ctx.Err() != nil {
 			return
@@ -38,7 +45,7 @@ func RunHeartbeat(ctx context.Context, client *Client, interval time.Duration, l
 			if !wait(ctx, maxBackoff) { return }
 			continue
 		}
-		logger.Printf("Cloud heartbeat failed: %v; retrying", err)
+		logger.Printf("Cloud heartbeat failed: %v; retrying", fmt.Errorf("%w", err))
 		delay := backoff + jitter(backoff/4)
 		if !wait(ctx, delay) { return }
 		backoff *= 2
