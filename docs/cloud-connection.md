@@ -2,45 +2,49 @@
 
 ## Enrôlement initial
 
-Le Cloud expose un échange à usage unique : `POST /v1/gateway/enroll`. Le client Go correspondant est disponible dans `internal/cloud/enrollment.go` via `cloud.RedeemEnrollment`.
+Le Gateway dispose de la commande `gateway enroll`, qui échange le jeton temporaire contre un jeton permanent et l'enregistre sans l'afficher.
 
-L'appel transmet un jeton d'enrôlement de 64 caractères hexadécimaux dans le corps JSON. En cas de succès, l'API renvoie `routerId`, `siteId` et un jeton permanent de 64 caractères. Le jeton d'enrôlement est consommé atomiquement et ne peut être réutilisé.
+Préparer deux chemins distincts :
 
-Exemple d'intégration Go :
+- `GATEWAY_ENROLLMENT_TOKEN_FILE` : fichier contenant le jeton temporaire fourni lors de l'enregistrement du routeur dans Mtandao Cloud.
+- `GATEWAY_TOKEN_FILE` : destination du jeton permanent. Le fichier ne doit pas déjà exister.
 
-```go
-result, err := cloud.RedeemEnrollment(ctx, cloudURL, enrollmentToken, nil)
-if err != nil {
-    return err
-}
-// Stocker result.GatewayToken dans le coffre-fort ou fichier protégé du système.
-// Ne jamais afficher ou journaliser cette valeur.
-```
-
-Le client vérifie HTTPS en production, limite le corps de réponse et refuse les réponses incomplètes. Le jeton permanent doit être persisté immédiatement dans un stockage protégé (fichier mode 0600 ou coffre-fort système). **L'intégration automatique au démarrage et l'écriture sécurisée du jeton ne sont pas encore implémentées** : ne pas considérer l'enrôlement comme automatisé à ce stade.
-
-## Configuration du heartbeat
-
-Le Gateway peut démarrer en mode local seul. Pour activer les heartbeats Cloud, configurer ensemble :
-
-- `CLOUD_API_URL` : URL racine de l'API Mtandao Cloud, obligatoirement HTTPS en production.
-- `GATEWAY_TOKEN_FILE` : chemin d'un fichier contenant le jeton permanent.
-- `GATEWAY_HEARTBEAT_INTERVAL` : intervalle facultatif en secondes, de 15 à 3600 (60 par défaut).
-
-Exemple Linux :
+Le fichier temporaire doit être régulier, non symbolique et protégé en mode 0600. Exemple :
 
 ```sh
 sudo install -d -m 700 /etc/mtandao-gateway
-sudo install -m 600 /dev/null /etc/mtandao-gateway/gateway.token
-# Inscrire le jeton permanent par un mécanisme sécurisé.
-sudo chmod 600 /etc/mtandao-gateway/gateway.token
+# Déposer le jeton temporaire dans ce fichier par un mécanisme sécurisé.
+sudo chmod 600 /etc/mtandao-gateway/enrollment.token
 
+export CLOUD_API_URL="https://api.example.invalid"
+export GATEWAY_ENROLLMENT_TOKEN_FILE="/etc/mtandao-gateway/enrollment.token"
+export GATEWAY_TOKEN_FILE="/etc/mtandao-gateway/gateway.token"
+
+./gateway enroll
+```
+
+À la réussite, le programme affiche uniquement les identifiants du routeur et du site, stocke le jeton permanent dans le fichier cible (répertoire 0700, fichier 0600), puis supprime le fichier du jeton temporaire. Si la destination existe déjà, la commande s'arrête avant de consommer le jeton temporaire. Si le stockage échoue après l'échange Cloud, le jeton permanent ne peut pas être récupéré : il faut générer un nouvel enrôlement depuis Cloud.
+
+L'endpoint appelé est `POST /v1/gateway/enroll`. Le jeton temporaire est à usage unique et expire après 15 minutes. Le client exige HTTPS en production et ne journalise jamais les secrets.
+
+## Configuration du heartbeat
+
+Pour activer les heartbeats Cloud, configurer ensemble :
+
+- `CLOUD_API_URL` : URL racine de l'API Mtandao Cloud, obligatoirement HTTPS en production.
+- `GATEWAY_TOKEN_FILE` : fichier contenant le jeton permanent.
+- `GATEWAY_HEARTBEAT_INTERVAL` : intervalle facultatif en secondes, de 15 à 3600 (60 par défaut).
+
+Exemple :
+
+```sh
 export CLOUD_API_URL="https://api.example.invalid"
 export GATEWAY_TOKEN_FILE="/etc/mtandao-gateway/gateway.token"
 export GATEWAY_HEARTBEAT_INTERVAL="60"
+./gateway
 ```
 
-Ne jamais inscrire le jeton dans le dépôt, une image de conteneur, une commande shell historisée ou un journal. Le fichier doit appartenir à l'utilisateur système du service et être inaccessible aux autres utilisateurs (mode 0600).
+Ne jamais inscrire les secrets dans le dépôt, une image de conteneur, une commande shell historisée ou un journal. Les fichiers doivent appartenir à l'utilisateur système du service et être inaccessibles aux autres utilisateurs.
 
 ## Fonctionnement
 
@@ -48,12 +52,12 @@ Ne jamais inscrire le jeton dans le dépôt, une image de conteneur, une command
 - Endpoint : `POST /v1/gateway/heartbeat`.
 - Le secret est transmis uniquement dans l'en-tête Authorization sur HTTPS.
 - Les erreurs réseau déclenchent une reprise exponentielle (5 secondes à 5 minutes) avec jitter.
-- Une réponse 401/403 suspend les tentatives fréquentes : le Gateway attend cinq minutes et nécessite un jeton remplacé/révoqué par l'administrateur.
+- Une réponse 401/403 suspend les tentatives fréquentes : le Gateway attend cinq minutes et nécessite un jeton remplacé par l'administrateur.
 - Le délai HTTP est limité et les signaux SIGINT/SIGTERM arrêtent proprement le worker.
 - Les journaux n'affichent jamais le jeton.
 
-Le mode local seul reste disponible lorsque les deux variables Cloud sont absentes. Si une seule est définie, le démarrage échoue pour éviter une configuration partielle.
+Le mode local seul reste disponible lorsque les variables Cloud ne sont pas configurées. Le service `/health` indique que le processus répond, pas que le Cloud ou le routeur MikroTik est joignable.
 
 ## Limites actuelles
 
-Le client Go sait maintenant appeler l'endpoint d'enrôlement et le heartbeat est opérationnel. Restent à faire : commande CLI ou enrôlement automatique, persistance sécurisée et rotation du jeton, réception/authentification des commandes, puis opérations RouterOS. Le service `/health` indique que le processus répond, pas que le Cloud ou le routeur MikroTik est joignable.
+L'enrôlement CLI, l'échange Cloud et le stockage local protégé sont maintenant implémentés. Restent à faire : rotation du jeton, réception et authentification des commandes, puis opérations RouterOS. Le déploiement de l'API et l'application des migrations Supabase restent des opérations distinctes.
