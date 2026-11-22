@@ -3,10 +3,10 @@ package cloud
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
-	"fmt"
 )
 
 // RunHeartbeat sends an immediate heartbeat and then retries with bounded
@@ -28,7 +28,9 @@ func RunHeartbeatWithRouterStatus(ctx context.Context, client *Client, interval 
 	for {
 		requestCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 		status := "unknown"
-		if routerStatus != nil { status = routerStatus() }
+		if routerStatus != nil {
+			status = routerStatus()
+		}
 		result, err := client.HeartbeatWithRouterStatus(requestCtx, status)
 		cancel()
 		if ctx.Err() != nil {
@@ -37,19 +39,27 @@ func RunHeartbeatWithRouterStatus(ctx context.Context, client *Client, interval 
 		if err == nil {
 			logger.Printf("Cloud heartbeat accepted: router=%s status=%s", result.RouterID, result.Status)
 			backoff = 5 * time.Second
-			if !wait(ctx, interval+jitter(interval/10)) { return }
+			if !wait(ctx, interval+jitter(interval/10)) {
+				return
+			}
 			continue
 		}
 		if errors.Is(err, ErrUnauthorized) {
 			logger.Printf("Cloud rejected Gateway credential; heartbeat paused until credential is replaced")
-			if !wait(ctx, maxBackoff) { return }
+			if !wait(ctx, maxBackoff) {
+				return
+			}
 			continue
 		}
 		logger.Printf("Cloud heartbeat failed: %v; retrying", fmt.Errorf("%w", err))
 		delay := backoff + jitter(backoff/4)
-		if !wait(ctx, delay) { return }
+		if !wait(ctx, delay) {
+			return
+		}
 		backoff *= 2
-		if backoff > maxBackoff { backoff = maxBackoff }
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
 	}
 }
 
@@ -65,6 +75,8 @@ func wait(ctx context.Context, duration time.Duration) bool {
 }
 
 func jitter(max time.Duration) time.Duration {
-	if max <= 0 { return 0 }
+	if max <= 0 {
+		return 0
+	}
 	return time.Duration(rand.Int63n(int64(max) + 1))
 }

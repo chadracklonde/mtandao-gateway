@@ -1,6 +1,6 @@
 # Protocole de commande Gateway
 
-Le contrat JSON de commande est défini dans `../contracts/gateway-command.schema.json` du dépôt Cloud; ce dépôt conserve cette documentation et doit rester compatible avec la version publiée du contrat.
+Le contrat JSON de commande est défini dans `packages/contracts/gateway-command.schema.json` du dépôt Cloud (résultat : `gateway-command-result.schema.json`); ce dépôt conserve cette documentation et doit rester compatible avec la version publiée du contrat.
 
 ## Champs essentiels
 

@@ -17,12 +17,12 @@ import (
 var ErrUnauthorized = errors.New("gateway credential rejected")
 
 type HeartbeatResponse struct {
-	RouterID   string    `json:"routerId"`
-	SiteID     string    `json:"siteId"`
-	Status     string    `json:"status"`
-	LastSeenAt time.Time `json:"lastSeenAt"`
-	RouterConnectionStatus string `json:"routerConnectionStatus"`
-	RouterLastSeenAt *time.Time `json:"routerLastSeenAt"`
+	RouterID               string     `json:"routerId"`
+	SiteID                 string     `json:"siteId"`
+	Status                 string     `json:"status"`
+	LastSeenAt             time.Time  `json:"lastSeenAt"`
+	RouterConnectionStatus string     `json:"routerConnectionStatus"`
+	RouterLastSeenAt       *time.Time `json:"routerLastSeenAt"`
 }
 
 type Client struct {
@@ -55,8 +55,8 @@ func NewClient(baseURL, token string, httpClient *http.Client) (*Client, error) 
 		httpClient = &http.Client{Timeout: 10 * time.Second}
 	}
 	return &Client{
-		baseURL: strings.TrimRight(parsed.String(), "/"),
-		token: token,
+		baseURL:    strings.TrimRight(parsed.String(), "/"),
+		token:      token,
 		httpClient: httpClient,
 	}, nil
 }
@@ -66,8 +66,10 @@ func (c *Client) Heartbeat(ctx context.Context) (HeartbeatResponse, error) {
 }
 
 func (c *Client) HeartbeatWithRouterStatus(ctx context.Context, routerStatus string) (HeartbeatResponse, error) {
-	if routerStatus != "unknown" && routerStatus != "online" && routerStatus != "unavailable" { return HeartbeatResponse{}, errors.New("invalid RouterOS connection status") }
-	body, _ := json.Marshal(map[string]string{"routerConnectionStatus":routerStatus})
+	if routerStatus != "unknown" && routerStatus != "online" && routerStatus != "unavailable" {
+		return HeartbeatResponse{}, errors.New("invalid RouterOS connection status")
+	}
+	body, _ := json.Marshal(map[string]string{"routerConnectionStatus": routerStatus})
 	endpoint := c.baseURL + "/v1/gateway/heartbeat"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {

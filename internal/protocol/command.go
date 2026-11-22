@@ -8,22 +8,22 @@ import (
 var ErrInvalidCommand = errors.New("invalid gateway command")
 
 type Command struct {
-	CommandID string    `json:"command_id"`
-	SiteID    string    `json:"site_id"`
-	GatewayID string    `json:"gateway_id"`
-	RouterID  string    `json:"router_id"`
-	Operation string    `json:"operation"`
-	IssuedAt  time.Time `json:"issued_at"`
-	ExpiresAt time.Time `json:"expires_at"`
+	CommandID string         `json:"command_id"`
+	SiteID    string         `json:"site_id"`
+	GatewayID string         `json:"gateway_id"`
+	RouterID  string         `json:"router_id"`
+	Operation string         `json:"operation"`
+	IssuedAt  time.Time      `json:"issued_at"`
+	ExpiresAt time.Time      `json:"expires_at"`
 	Payload   map[string]any `json:"payload"`
 }
 
 var allowedOperations = map[string]struct{}{
-	"health.check":                  {},
-	"hotspot.voucher.create":        {},
-	"hotspot.voucher.disable":       {},
-	"hotspot.profile.list":          {},
-	"hotspot.active-sessions.list":  {},
+	"health.check":                 {},
+	"hotspot.voucher.create":       {},
+	"hotspot.voucher.disable":      {},
+	"hotspot.profile.list":         {},
+	"hotspot.active-sessions.list": {},
 }
 
 // Validate performs basic structural and expiry checks. Cryptographic signature

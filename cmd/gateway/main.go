@@ -20,9 +20,9 @@ import (
 )
 
 type healthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
-	Router *routeros.Snapshot `json:"router,omitempty"`
+	Status  string             `json:"status"`
+	Service string             `json:"service"`
+	Router  *routeros.Snapshot `json:"router,omitempty"`
 }
 
 func main() {
@@ -41,7 +41,9 @@ func main() {
 	defer stop()
 
 	routerMonitor, err := startRouterMonitor(ctx, logger)
-	if err != nil { logger.Fatal(err) }
+	if err != nil {
+		logger.Fatal(err)
+	}
 	if err := startCloudHeartbeat(ctx, logger, routerConnectionStatus(routerMonitor)); err != nil {
 		logger.Fatal(err)
 	}
@@ -156,7 +158,9 @@ func startRouterMonitor(ctx context.Context, logger *log.Logger) (*routeros.Moni
 		return nil, nil
 	}
 	cfg, err := routeros.ReadConfig(configPath)
-	if err != nil { return nil, fmt.Errorf("load RouterOS configuration: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("load RouterOS configuration: %w", err)
+	}
 	interval := 30 * time.Second
 	if raw := strings.TrimSpace(os.Getenv("ROUTEROS_POLL_INTERVAL")); raw != "" {
 		seconds, parseErr := strconv.Atoi(raw)
@@ -172,17 +176,25 @@ func startRouterMonitor(ctx context.Context, logger *log.Logger) (*routeros.Moni
 }
 
 func routerSnapshot(monitor *routeros.Monitor) *routeros.Snapshot {
-	if monitor == nil { return nil }
+	if monitor == nil {
+		return nil
+	}
 	snapshot := monitor.Snapshot()
 	return &snapshot
 }
 
 func routerConnectionStatus(monitor *routeros.Monitor) func() string {
 	return func() string {
-		if monitor == nil { return "unknown" }
+		if monitor == nil {
+			return "unknown"
+		}
 		snapshot := monitor.Snapshot()
-		if snapshot.CheckedAt.IsZero() { return "unknown" }
-		if snapshot.Connected { return "online" }
+		if snapshot.CheckedAt.IsZero() {
+			return "unknown"
+		}
+		if snapshot.Connected {
+			return "online"
+		}
 		return "unavailable"
 	}
 }
