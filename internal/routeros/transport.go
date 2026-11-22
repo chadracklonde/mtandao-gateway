@@ -25,6 +25,11 @@ type TLSConfig struct {
 	Username string
 	Password string
 	Timeout  time.Duration
+	// CAFile optionally holds PEM certificates to trust instead of the system
+	// roots (for example the router's own certificate). Verification is never disabled.
+	CAFile string
+	// ServerName overrides the name checked in the certificate; defaults to the IP.
+	ServerName string
 }
 
 // DialTLS establishes an encrypted connection to a local RouterOS API endpoint.
@@ -55,7 +60,18 @@ func DialTLS(ctx context.Context, cfg TLSConfig) (*Transport, error) {
 
 	dialCtx, cancel := context.WithTimeout(ctx, cfg.Timeout)
 	defer cancel()
-	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: host}
+	serverName := host
+	if strings.TrimSpace(cfg.ServerName) != "" {
+		serverName = strings.TrimSpace(cfg.ServerName)
+	}
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName}
+	if cfg.CAFile != "" {
+		pool, err := loadCAPool(cfg.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.RootCAs = pool
+	}
 	conn, err := (&tls.Dialer{NetDialer: &net.Dialer{Timeout: cfg.Timeout}, Config: tlsConfig}).DialContext(dialCtx, "tcp", cfg.Address)
 	if err != nil {
 		return nil, fmt.Errorf("connect to local RouterOS API over TLS: %w", err)
@@ -110,6 +126,18 @@ func (t *Transport) Execute(ctx context.Context, words []string) ([]map[string]s
 	if !allowed[words[0]] || !validPropertyList(words[0], words[1]) {
 		return nil, errors.New("unsupported RouterOS request")
 	}
+	return t.run(ctx, words)
+}
+
+// ExecuteHotspot runs one allow-listed Hotspot request (see ValidateHotspotWords).
+func (t *Transport) ExecuteHotspot(ctx context.Context, words []string) ([]map[string]string, error) {
+	if err := ValidateHotspotWords(words); err != nil {
+		return nil, err
+	}
+	return t.run(ctx, words)
+}
+
+func (t *Transport) run(ctx context.Context, words []string) ([]map[string]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, t.timeout)
 	defer cancel()
 	reply, err := t.client.RunContext(ctx, words...)
