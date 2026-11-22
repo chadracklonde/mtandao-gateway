@@ -36,7 +36,7 @@ func (f *fakeRouter) ActiveSessions(context.Context) ([]routeros.ActiveSession, 
 	f.calls = append(f.calls, "sessions")
 	return f.sessions, nil
 }
-func (f *fakeRouter) CreateVoucher(_ context.Context, code, profile string, d time.Duration) error {
+func (f *fakeRouter) CreateVoucher(_ context.Context, code string, opts routeros.VoucherOptions) error {
 	f.calls = append(f.calls, "create:"+code)
 	if f.vouchers[code] {
 		return routeros.ErrVoucherExists
@@ -102,6 +102,21 @@ func TestCreateVoucherRunsOnceEvenIfProcessedAgain(t *testing.T) {
 	second := run(t, e, l, cmd)
 	if !second.Success || len(router.calls) != 1 {
 		t.Fatalf("second=%+v calls=%v", second, router.calls)
+	}
+}
+
+func TestCreateVoucherReportsTheLimitsItApplied(t *testing.T) {
+	router := &fakeRouter{vouchers: map[string]bool{}}
+	e, l, _ := newExec(t, router, Target{})
+	o := run(t, e, l, command("c1", "hotspot.voucher.create", map[string]any{
+		"code": "V1", "duration_minutes": float64(1440), "data_limit_mb": float64(2048), "comment": "vc-221126-1432 cloud",
+	}))
+	if !o.Success || o.Result["usage_limit_minutes"] != 1440 || o.Result["data_limit_mb"] != 2048 {
+		t.Fatalf("outcome = %+v", o)
+	}
+	unlimited := run(t, e, l, command("c2", "hotspot.voucher.create", map[string]any{"code": "V2"}))
+	if !unlimited.Success || unlimited.Result["usage_limit_minutes"] != 0 || unlimited.Result["data_limit_mb"] != 0 {
+		t.Fatalf("unlimited outcome = %+v", unlimited)
 	}
 }
 

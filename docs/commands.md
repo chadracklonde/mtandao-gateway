@@ -22,8 +22,16 @@ Variables d'environnement (voir `packaging/linux/gateway.env.example`) :
 | `health.check` | lecture : identité, version, carte, uptime, interfaces | aucun |
 | `hotspot.profile.list` | `/ip/hotspot/user/profile/print` | aucun |
 | `hotspot.active-sessions.list` | `/ip/hotspot/active/print` | aucun |
-| `hotspot.voucher.create` | `/ip/hotspot/user/add` (nom = mot de passe = code) | `code`, `profile` (opt.), `duration_minutes` (opt.) |
+| `hotspot.voucher.create` | `/ip/hotspot/user/add` (nom = mot de passe = code) | `code`, `profile` (opt.), `duration_minutes` (opt.), `data_limit_mb` (opt.), `comment` (opt.) |
 | `hotspot.voucher.disable` | désactive l'utilisateur et termine ses sessions actives | `code` |
+
+Limites posées sur le ticket, comme le fait l'application Mtandao Ticket :
+
+- `duration_minutes` → `limit-uptime` : limite de temps d'utilisation, qui court à partir de la première connexion. Absent : pas de limite.
+- `data_limit_mb` → `limit-bytes-total` : limite de données (1 Mo = 1 048 576 octets, comme l'application). Absent : pas de limite.
+- `comment` → commentaire du ticket au format `vc-JJMMAA-HHMM <note>` (ou `up-…`). Avec le script on-login du profil de l'application ou de Mikhmon, ce préfixe est ce qui fait enregistrer la vente, marquer le ticket « utilisé » et armer son expiration ; sans lui, seule la limite du routeur s'applique. Les tickets créés par le Cloud portent ce commentaire.
+
+Le résultat renvoyé indique les limites appliquées (`usage_limit_minutes`, `data_limit_mb`, 0 = aucune).
 
 Le code d'un voucher doit correspondre à `[A-Za-z0-9_.-]{1,64}` et un profil à `[A-Za-z0-9 _.-]{1,120}`. Le Gateway est volontairement plus strict que le Cloud : une commande hors de ces formats est rejetée (`invalid_payload`).
 

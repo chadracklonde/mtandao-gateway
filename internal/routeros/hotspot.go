@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -86,9 +87,22 @@ func (h *Hotspot) ActiveSessions(ctx context.Context) ([]ActiveSession, error) {
 	return out, nil
 }
 
+// VoucherOptions are the limits and metadata of a new ticket.
+type VoucherOptions struct {
+	Profile string
+	// Duration is the usage time limit (limit-uptime). Zero means none.
+	Duration time.Duration
+	// DataLimitMB is the data limit (limit-bytes-total, 1 MB = 1 048 576 bytes, as in
+	// the Mtandao Ticket app). Zero means none.
+	DataLimitMB int
+	// Comment is the ticket comment, vc-DDMMYY-HHMM <note>. With the app's profile
+	// script, it is what makes the router log the sale and arm the expiry.
+	Comment string
+}
+
 // CreateVoucher adds a Hotspot user whose name and password are the voucher code.
 // It fails with ErrVoucherExists instead of overwriting an existing user.
-func (h *Hotspot) CreateVoucher(ctx context.Context, code, profile string, duration time.Duration) error {
+func (h *Hotspot) CreateVoucher(ctx context.Context, code string, opts VoucherOptions) error {
 	existing, err := h.findUser(ctx, code)
 	if err != nil {
 		return err
@@ -97,11 +111,17 @@ func (h *Hotspot) CreateVoucher(ctx context.Context, code, profile string, durat
 		return ErrVoucherExists
 	}
 	words := []string{"/ip/hotspot/user/add", "=name=" + code, "=password=" + code}
-	if profile != "" {
-		words = append(words, "=profile="+profile)
+	if opts.Profile != "" {
+		words = append(words, "=profile="+opts.Profile)
 	}
-	if duration > 0 {
-		words = append(words, "=limit-uptime="+formatUptime(duration))
+	if opts.Comment != "" {
+		words = append(words, "=comment="+opts.Comment)
+	}
+	if opts.Duration > 0 {
+		words = append(words, "=limit-uptime="+formatUptime(opts.Duration))
+	}
+	if opts.DataLimitMB > 0 {
+		words = append(words, "=limit-bytes-total="+strconv.FormatInt(int64(opts.DataLimitMB)*1048576, 10))
 	}
 	_, err = h.run(ctx, words...)
 	return err

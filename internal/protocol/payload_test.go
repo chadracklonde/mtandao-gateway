@@ -40,6 +40,30 @@ func TestParseVoucherCreateRejectsInvalidPayloads(t *testing.T) {
 	}
 }
 
+func TestParseVoucherCreateWithLimitsAndComment(t *testing.T) {
+	got, err := ParseVoucherCreate(map[string]any{
+		"code": "AB-12", "duration_minutes": float64(1440), "data_limit_mb": float64(2048),
+		"comment": "vc-221126-1432 cloud",
+	})
+	if err != nil || got.DurationMinutes != 1440 || got.DataLimitMB != 2048 || got.Comment != "vc-221126-1432 cloud" {
+		t.Fatalf("got %+v err=%v", got, err)
+	}
+	for name, payload := range map[string]map[string]any{
+		"data limit zero":    {"code": "a", "data_limit_mb": float64(0)},
+		"data limit huge":    {"code": "a", "data_limit_mb": float64(10_000_001)},
+		"data limit string":  {"code": "a", "data_limit_mb": "500"},
+		"data limit decimal": {"code": "a", "data_limit_mb": 1.5},
+		"comment free text":  {"code": "a", "comment": "hello"},
+		"comment injection":  {"code": "a", "comment": "vc-221126-1432;/system reset"},
+		"comment newline":    {"code": "a", "comment": "vc-221126-1432 a\nb"},
+		"comment type":       {"code": "a", "comment": 7},
+	} {
+		if _, err := ParseVoucherCreate(payload); !errors.Is(err, ErrInvalidPayload) {
+			t.Errorf("%s: accepted (err=%v)", name, err)
+		}
+	}
+}
+
 func TestParseVoucherDisableAndEmptyPayload(t *testing.T) {
 	if code, err := ParseVoucherDisable(map[string]any{"code": "AB_1.x"}); err != nil || code != "AB_1.x" {
 		t.Fatalf("code=%q err=%v", code, err)

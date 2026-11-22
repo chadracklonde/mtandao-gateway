@@ -87,11 +87,17 @@ func (f *fakeRouter) ExecuteHotspot(_ context.Context, words []string) ([]map[st
 func TestCreateVoucherBuildsAllowedWordsOnly(t *testing.T) {
 	f := newFakeRouter()
 	h, _ := NewHotspot(f)
-	if err := h.CreateVoucher(context.Background(), "AB-12", "1h", 90*time.Minute); err != nil {
+	err := h.CreateVoucher(context.Background(), "AB-12", VoucherOptions{
+		Profile: "1h", Duration: 90 * time.Minute, DataLimitMB: 500, Comment: "vc-221126-1432 cloud",
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 	last := f.sent[len(f.sent)-1]
-	want := []string{"/ip/hotspot/user/add", "=name=AB-12", "=password=AB-12", "=profile=1h", "=limit-uptime=1h30m"}
+	want := []string{
+		"/ip/hotspot/user/add", "=name=AB-12", "=password=AB-12", "=profile=1h",
+		"=comment=vc-221126-1432 cloud", "=limit-uptime=1h30m", "=limit-bytes-total=524288000",
+	}
 	if strings.Join(last, "|") != strings.Join(want, "|") {
 		t.Fatalf("sent %v want %v", last, want)
 	}
@@ -103,10 +109,10 @@ func TestCreateVoucherBuildsAllowedWordsOnly(t *testing.T) {
 func TestCreateVoucherRefusesDuplicates(t *testing.T) {
 	f := newFakeRouter()
 	h, _ := NewHotspot(f)
-	if err := h.CreateVoucher(context.Background(), "DUP", "", 0); err != nil {
+	if err := h.CreateVoucher(context.Background(), "DUP", VoucherOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.CreateVoucher(context.Background(), "DUP", "", 0); !errors.Is(err, ErrVoucherExists) {
+	if err := h.CreateVoucher(context.Background(), "DUP", VoucherOptions{}); !errors.Is(err, ErrVoucherExists) {
 		t.Fatalf("got %v", err)
 	}
 	if len(f.users) != 1 {
@@ -117,7 +123,7 @@ func TestCreateVoucherRefusesDuplicates(t *testing.T) {
 func TestDisableVoucherEndsSessions(t *testing.T) {
 	f := newFakeRouter()
 	h, _ := NewHotspot(f)
-	_ = h.CreateVoucher(context.Background(), "V1", "", 0)
+	_ = h.CreateVoucher(context.Background(), "V1", VoucherOptions{})
 	f.sessions = []map[string]string{{".id": "*A", "user": "V1"}, {".id": "*B", "user": "OTHER"}}
 	ended, err := h.DisableVoucher(context.Background(), "V1")
 	if err != nil || ended != 1 {
@@ -157,7 +163,7 @@ func TestRouterErrorsPropagate(t *testing.T) {
 	f := newFakeRouter()
 	f.failOn = "/ip/hotspot/user/print"
 	h, _ := NewHotspot(f)
-	if err := h.CreateVoucher(context.Background(), "X", "", 0); err == nil || errors.Is(err, ErrVoucherExists) {
+	if err := h.CreateVoucher(context.Background(), "X", VoucherOptions{}); err == nil || errors.Is(err, ErrVoucherExists) {
 		t.Fatalf("got %v", err)
 	}
 	if len(f.users) != 0 {
@@ -172,6 +178,8 @@ func TestValidateHotspotWords(t *testing.T) {
 		{"/ip/hotspot/user/set", "=.id=*1F", "=disabled=yes"},
 		{"/ip/hotspot/active/remove", "=.id=*A"},
 		{"/ip/hotspot/user/print", "?name=A1", "=.proplist=.id,name"},
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=comment=vc-221126-1432", "=limit-bytes-total=524288000"},
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=comment=up-010126-0905 Client Jean"},
 	}
 	for _, words := range valid {
 		if err := ValidateHotspotWords(words); err != nil {
@@ -195,7 +203,14 @@ func TestValidateHotspotWords(t *testing.T) {
 		{"/ip/hotspot/user/print", "=.proplist=password"},
 		{"/ip/hotspot/user/print", "=.proplist=name,name"},
 		{"/ip/hotspot/active/remove", "=.id=*A", "=.id=*B"},
-		{"/ip/hotspot/user/print", "name=x"}, // no prefix
+		{"/ip/hotspot/user/print", "name=x"},                                                          // no prefix
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=comment=free text"},                    // not the ticket format
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=comment=vc-221126-1432;/system reset"}, // injection attempt
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=comment=vc-22112-1432"},                // malformed date
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=limit-bytes-total=0"},
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=limit-bytes-total=-5"},
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=limit-bytes-total=10G"},
+		{"/ip/hotspot/user/add", "=name=A1", "=password=A1", "=limit-bytes-total=1", "=limit-bytes-total=2"},
 	}
 	for _, words := range invalid {
 		if err := ValidateHotspotWords(words); !errors.Is(err, ErrUnsupportedRequest) {

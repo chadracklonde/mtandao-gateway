@@ -64,7 +64,7 @@ func (f *fakeRouter) Profiles(context.Context) ([]routeros.Profile, error) { ret
 func (f *fakeRouter) ActiveSessions(context.Context) ([]routeros.ActiveSession, error) {
 	return nil, nil
 }
-func (f *fakeRouter) CreateVoucher(_ context.Context, code, _ string, _ time.Duration) error {
+func (f *fakeRouter) CreateVoucher(_ context.Context, code string, _ routeros.VoucherOptions) error {
 	f.created[code]++
 	return nil
 }

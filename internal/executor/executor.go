@@ -35,7 +35,7 @@ type Router interface {
 	Health(ctx context.Context) (map[string]any, error)
 	Profiles(ctx context.Context) ([]routeros.Profile, error)
 	ActiveSessions(ctx context.Context) ([]routeros.ActiveSession, error)
-	CreateVoucher(ctx context.Context, code, profile string, duration time.Duration) error
+	CreateVoucher(ctx context.Context, code string, opts routeros.VoucherOptions) error
 	DisableVoucher(ctx context.Context, code string) (int, error)
 }
 
@@ -149,8 +149,18 @@ func (e *Executor) execute(ctx context.Context, cmd protocol.Command) Outcome {
 		return success(map[string]any{"sessions": rows, "count": len(sessions), "truncated": truncated})
 	case "hotspot.voucher.create":
 		payload, _ := protocol.ParseVoucherCreate(cmd.Payload)
-		err := router.CreateVoucher(ctx, payload.Code, payload.Profile, time.Duration(payload.DurationMinutes)*time.Minute)
-		return voucherOutcome(err, map[string]any{"code": payload.Code, "created": true})
+		err := router.CreateVoucher(ctx, payload.Code, routeros.VoucherOptions{
+			Profile:     payload.Profile,
+			Duration:    time.Duration(payload.DurationMinutes) * time.Minute,
+			DataLimitMB: payload.DataLimitMB,
+			Comment:     payload.Comment,
+		})
+		return voucherOutcome(err, map[string]any{
+			"code":                payload.Code,
+			"created":             true,
+			"usage_limit_minutes": payload.DurationMinutes, // 0: no time limit
+			"data_limit_mb":       payload.DataLimitMB,     // 0: no data limit
+		})
 	case "hotspot.voucher.disable":
 		code, _ := protocol.ParseVoucherDisable(cmd.Payload)
 		ended, err := router.DisableVoucher(ctx, code)

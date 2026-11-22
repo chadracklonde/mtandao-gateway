@@ -40,7 +40,7 @@ var hotspotRules = map[string]hotspotRule{
 		proplist: set(".id", "name", "disabled", "profile"),
 	},
 	"/ip/hotspot/user/add": {
-		attrs:    set("name", "password", "profile", "limit-uptime"),
+		attrs:    set("name", "password", "profile", "limit-uptime", "limit-bytes-total", "comment"),
 		required: []string{"name", "password"},
 	},
 	"/ip/hotspot/user/set": {
@@ -57,6 +57,8 @@ var (
 	routerIDPattern  = regexp.MustCompile(`^\*[0-9A-Fa-f]{1,16}$`)
 	safeValuePattern = regexp.MustCompile(`^[A-Za-z0-9 _.\-]{1,120}$`)
 	uptimePattern    = regexp.MustCompile(`^([0-9]{1,4}d)?([0-9]{1,2}h)?([0-9]{1,2}m)?$`)
+	bytesPattern     = regexp.MustCompile(`^[1-9][0-9]{0,12}$`)
+	commentPattern   = regexp.MustCompile(`^(vc|up)-[0-9]{6}-[0-9]{4}( [A-Za-z0-9 .'-]{1,30})?$`)
 )
 
 // ValidateHotspotWords checks one RouterOS API sentence against the allow-list.
@@ -129,6 +131,10 @@ func validAttribute(key, value string) bool {
 		return value == "yes" || value == "no"
 	case "limit-uptime":
 		return value != "" && uptimePattern.MatchString(value)
+	case "limit-bytes-total":
+		return bytesPattern.MatchString(value)
+	case "comment":
+		return commentPattern.MatchString(value)
 	default: // name, password, profile
 		return safeValuePattern.MatchString(value)
 	}

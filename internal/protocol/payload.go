@@ -13,15 +13,23 @@ var ErrInvalidPayload = errors.New("invalid command payload")
 var (
 	voucherCodePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
 	profileNamePattern = regexp.MustCompile(`^[A-Za-z0-9 _.-]{1,120}$`)
+	// Ticket comment in the Mikhmon / Mtandao Ticket format: vc-DDMMYY-HHMM <note>.
+	// The router's profile script only logs a sale for users whose comment starts with vc- or up-.
+	ticketCommentPattern = regexp.MustCompile(`^(vc|up)-[0-9]{6}-[0-9]{4}( [A-Za-z0-9 .'-]{1,30})?$`)
 )
 
-const maxDurationMinutes = 525600
+const (
+	maxDurationMinutes = 525600
+	maxDataLimitMB     = 10_000_000
+)
 
 // VoucherCreate is the validated payload of hotspot.voucher.create.
 type VoucherCreate struct {
 	Code            string
 	Profile         string // optional
-	DurationMinutes int    // optional, 0 means no uptime limit
+	DurationMinutes int    // optional: usage time limit (limit-uptime); 0 means none
+	DataLimitMB     int    // optional: data limit (limit-bytes-total); 0 means none
+	Comment         string // optional: ticket comment, vc-DDMMYY-HHMM <note>
 }
 
 // ParseVoucherCreate validates the payload strictly: unknown fields are refused,
@@ -29,7 +37,7 @@ type VoucherCreate struct {
 func ParseVoucherCreate(payload map[string]any) (VoucherCreate, error) {
 	var out VoucherCreate
 	for key := range payload {
-		if key != "code" && key != "profile" && key != "duration_minutes" {
+		if key != "code" && key != "profile" && key != "duration_minutes" && key != "data_limit_mb" && key != "comment" {
 			return out, fmt.Errorf("%w: unexpected field %q", ErrInvalidPayload, key)
 		}
 	}
@@ -51,6 +59,20 @@ func ParseVoucherCreate(payload map[string]any) (VoucherCreate, error) {
 			return out, fmt.Errorf("%w: duration_minutes", ErrInvalidPayload)
 		}
 		out.DurationMinutes = int(number)
+	}
+	if raw, ok := payload["data_limit_mb"]; ok {
+		number, isNumber := raw.(float64)
+		if !isNumber || number != math.Trunc(number) || number < 1 || number > maxDataLimitMB {
+			return out, fmt.Errorf("%w: data_limit_mb", ErrInvalidPayload)
+		}
+		out.DataLimitMB = int(number)
+	}
+	if raw, ok := payload["comment"]; ok {
+		comment, isString := raw.(string)
+		if !isString || !ticketCommentPattern.MatchString(comment) {
+			return out, fmt.Errorf("%w: comment", ErrInvalidPayload)
+		}
+		out.Comment = comment
 	}
 	return out, nil
 }
