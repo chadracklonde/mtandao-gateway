@@ -11,7 +11,11 @@ Le contrat JSON de commande est défini dans `packages/contracts/gateway-command
 - `payload` : arguments validés par schéma.
 - `signature` : signature calculée sur une représentation canonique du message.
 
-## Réponse
+## Résultat envoyé au Cloud
+
+Le Gateway renvoie `POST /v1/gateway/commands/{command_id}/result` avec `{ success, result, error }` (voir `gateway-command-result.schema.json`). Les statuts détaillés ci-dessous sont portés par le code d'erreur (`error` = `code: message`). Voir [l'exécution des commandes](commands.md).
+
+## Réponse (modèle cible)
 
 Chaque résultat doit inclure `command_id`, `gateway_id`, `status` (`succeeded`, `failed`, `rejected`, `expired`), `started_at`, `completed_at`, un code d'erreur stable et un résultat expurgé des secrets.
 

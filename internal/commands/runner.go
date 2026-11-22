@@ -110,11 +110,15 @@ func (r *Runner) finishAndReport(ctx context.Context) error {
 			return ctx.Err()
 		}
 		outcome := entry.Outcome
-		err := r.api.ReportResult(ctx, entry.Command.CommandID, cloud.CommandResult{
-			Success: outcome.Success,
-			Result:  outcome.Result,
-			Error:   outcome.CloudError(),
-		})
+		result := cloud.CommandResult{Success: outcome.Success, Result: outcome.Result, Error: outcome.CloudError()}
+		err := r.api.ReportResult(ctx, entry.Command.CommandID, result)
+		if errors.Is(err, cloud.ErrResultTooLarge) {
+			// Never retry an unsendable result forever: report the failure instead.
+			r.logger.Printf("result of command %s is too large; reporting a failure", entry.Command.CommandID)
+			err = r.api.ReportResult(ctx, entry.Command.CommandID, cloud.CommandResult{
+				Error: executor.CodeResultTooLarge + ": the result exceeds the size the Cloud accepts",
+			})
+		}
 		switch {
 		case err == nil:
 		case errors.Is(err, cloud.ErrResultRefused):

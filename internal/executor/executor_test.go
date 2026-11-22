@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -209,6 +210,20 @@ func TestListResultsAreCapped(t *testing.T) {
 	rows := o.Result["sessions"].([]routeros.ActiveSession)
 	if len(rows) != maxListRows || o.Result["truncated"] != true || o.Result["count"] != 600 {
 		t.Fatalf("rows=%d result=%v", len(rows), o.Result["truncated"])
+	}
+}
+
+func TestListResultsFitTheCloudSizeLimit(t *testing.T) {
+	big := make([]routeros.ActiveSession, 400)
+	for i := range big {
+		big[i] = routeros.ActiveSession{User: strings.Repeat("u", 100), Address: strings.Repeat("a", 100), MACAddress: strings.Repeat("m", 100)}
+	}
+	router := &fakeRouter{vouchers: map[string]bool{}, sessions: big}
+	e, l, _ := newExec(t, router, Target{})
+	o := run(t, e, l, command("c1", "hotspot.active-sessions.list", map[string]any{}))
+	encoded, err := json.Marshal(o.Result)
+	if err != nil || len(encoded) > 60<<10 || o.Result["truncated"] != true || o.Result["count"] != 400 {
+		t.Fatalf("size=%d err=%v truncated=%v", len(encoded), err, o.Result["truncated"])
 	}
 }
 

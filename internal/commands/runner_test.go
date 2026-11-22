@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -214,5 +215,35 @@ func TestRunStopsWhenContextIsCancelled(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not stop")
+	}
+}
+
+type tooLargeCloud struct {
+	fakeCloud
+	calls []cloud.CommandResult
+}
+
+func (f *tooLargeCloud) ReportResult(_ context.Context, id string, r cloud.CommandResult) error {
+	f.calls = append(f.calls, r)
+	if len(f.calls) == 1 {
+		return cloud.ErrResultTooLarge
+	}
+	return nil
+}
+
+func TestUnsendableResultIsReplacedByAFailureReport(t *testing.T) {
+	api := &tooLargeCloud{fakeCloud: fakeCloud{queue: [][]protocol.Command{{cmd("c1", "health.check", map[string]any{})}}}}
+	ledger, _ := executor.OpenLedger(filepath.Join(t.TempDir(), "commands.json"))
+	router := &fakeRouter{created: map[string]int{}}
+	exec, _ := executor.New(ledger, func(context.Context) (executor.Router, func(), error) { return router, func() {}, nil }, executor.Target{})
+	r := NewRunner(api, exec, ledger, time.Second, log.New(io.Discard, "", 0))
+	if _, err := r.Cycle(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(api.calls) != 2 || api.calls[1].Success || !strings.HasPrefix(api.calls[1].Error, "result_too_large:") {
+		t.Fatalf("calls = %+v", api.calls)
+	}
+	if len(ledger.Unreported()) != 0 {
+		t.Fatal("result must not be retried forever")
 	}
 }

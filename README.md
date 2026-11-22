@@ -26,6 +26,10 @@ Passerelle locale entre Mtandao Cloud et les routeurs MikroTik RouterOS.
 - Configuration RouterOS locale protégée (JSON, permissions strictes) et surveillance périodique en lecture seule exposée dans `/health`.
 - Authentification par jeton bearer conservé dans un fichier protégé.
 - Reconnexion avec backoff exponentiel et arrêt contrôlé.
+- Réception et exécution des commandes Cloud (désactivées par défaut) : liste blanche stricte, registre durable, exécution unique, reprise après panne. Voir [l'exécution des commandes](docs/commands.md).
+- Adaptateur Hotspot RouterOS (profils, sessions actives, création et désactivation de vouchers).
+- Confiance au certificat du routeur via `ca_file` (vérification TLS jamais désactivée).
+- Service systemd durci : `packaging/linux/`.
 
 Voir [la configuration de connexion Cloud](docs/cloud-connection.md).
 
@@ -37,7 +41,7 @@ Les secrets RouterOS sont conservés localement dans un stockage protégé et ne
 
 ## État
 
-L'enrôlement CLI, le stockage protégé du jeton permanent et le client de heartbeat Cloud sont implémentés. Le transport TLS RouterOS API est implémenté, mais doit encore être validé sur un équipement de laboratoire avec un certificat approuvé. La réception des commandes, leur authentification cryptographique et toute opération d'écriture restent à développer. L'interface actuelle ne permet pas d'exécuter des commandes arbitraires. Le heartbeat confirme la connexion au Cloud, pas la disponibilité du routeur local.
+L'enrôlement CLI, le stockage protégé du jeton permanent et le client de heartbeat Cloud sont implémentés. Le transport TLS RouterOS API est implémenté, mais doit encore être validé sur un équipement de laboratoire avec un certificat approuvé. L'exécution des commandes est implémentée et testée avec un routeur simulé et contre l'API Cloud, mais pas encore validée sur un équipement réel (voir [le plan de test](docs/lab-test-plan.md)). L'authentification cryptographique des commandes reste à développer. Aucune commande arbitraire ne peut être exécutée. Le heartbeat confirme la connexion au Cloud, pas la disponibilité du routeur local.
 
 ## Documentation
 
@@ -45,6 +49,7 @@ L'enrôlement CLI, le stockage protégé du jeton permanent et le client de hear
 - [Connexion Cloud](docs/cloud-connection.md).
 - [Architecture](docs/architecture.md).
 - [Protocole de commande](docs/protocol.md).
+- [Exécution des commandes](docs/commands.md) et [plan de test en laboratoire](docs/lab-test-plan.md).
 - [Guide de développement](docs/development.md).
 - [Cahier des charges Mtandao Cloud](https://github.com/chadracklonde/mtandao-cloud/blob/main/docs/cahier-des-charges.md).
 - [Cahier des charges Mtandao Ticket](https://github.com/chadracklonde/mtandao-ticket-app/blob/main/docs/cahier-des-charges.md).

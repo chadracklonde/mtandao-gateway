@@ -4,6 +4,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -23,7 +24,9 @@ const (
 	CodeVoucherNotFound   = "voucher_not_found"
 	CodeInterrupted       = "interrupted"
 	CodeInternal          = "internal_error"
+	CodeResultTooLarge    = "result_too_large"
 	maxListRows           = 500
+	maxListBytes          = 40 << 10
 	maxDialAndRunDuration = 60 * time.Second
 )
 
@@ -169,11 +172,21 @@ func voucherOutcome(err error, result map[string]any) Outcome {
 	}
 }
 
+// capRows limits a list by row count and by encoded size, so the result always
+// fits what the Cloud accepts. It reports whether rows were dropped.
 func capRows[T any](rows []T) ([]T, bool) {
+	truncated := false
 	if len(rows) > maxListRows {
-		return rows[:maxListRows], true
+		rows, truncated = rows[:maxListRows], true
 	}
-	return rows, false
+	for len(rows) > 0 {
+		encoded, err := json.Marshal(rows)
+		if err == nil && len(encoded) <= maxListBytes {
+			break
+		}
+		rows, truncated = rows[:len(rows)/2], true
+	}
+	return rows, truncated
 }
 
 func success(result map[string]any) Outcome { return Outcome{Success: true, Result: result} }

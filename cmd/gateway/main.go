@@ -48,6 +48,10 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	if err := startCommandRunner(ctx, logger, os.Getenv); err != nil {
+		logger.Fatal(err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

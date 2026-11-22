@@ -19,11 +19,15 @@ import (
 // one). Retrying cannot help.
 var ErrResultRefused = errors.New("Cloud refused the command result")
 
+// ErrResultTooLarge means the result exceeds what the Cloud accepts; it cannot be sent as is.
+var ErrResultTooLarge = errors.New("command result is too large")
+
 var commandIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 const (
 	maxClaimResponseBytes = 4 << 20
-	maxResultBytes        = 60 << 10 // the Cloud accepts at most 64 KB
+	// MaxResultBytes is the largest encoded result sent to the Cloud (it accepts 64 KB).
+	MaxResultBytes = 60 << 10
 )
 
 // CommandResult is the body of POST /v1/gateway/commands/{id}/result.
@@ -70,8 +74,8 @@ func (c *Client) ReportResult(ctx context.Context, commandID string, result Comm
 	if err != nil {
 		return err
 	}
-	if len(body) > maxResultBytes {
-		return errors.New("command result is too large")
+	if len(body) > MaxResultBytes {
+		return ErrResultTooLarge
 	}
 	resp, err := c.postJSON(ctx, "/v1/gateway/commands/"+url.PathEscape(commandID)+"/result", body)
 	if err != nil {

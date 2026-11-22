@@ -22,7 +22,7 @@ Le transport refuse les noms DNS et les adresses IP publiques. Il accepte unique
 
 Le transport utilise TLS avec une version minimale TLS 1.2 et vérifie le certificat du serveur. Aucun mode de désactivation de vérification TLS n'est fourni. Les identifiants sont obligatoires et ne doivent jamais être inscrits dans le dépôt ou les journaux.
 
-Les tests actuels utilisent un client simulé. Une validation sur un MikroTik de laboratoire reste nécessaire avant tout déploiement. Les opérations d'écriture, la gestion des utilisateurs Hotspot et l'exécution de commandes reçues du Cloud ne sont pas activées.
+Les tests actuels utilisent un client simulé. Une validation sur un MikroTik de laboratoire reste nécessaire avant tout déploiement. La gestion des utilisateurs Hotspot (création et désactivation de vouchers) et l'exécution des commandes reçues du Cloud sont disponibles mais désactivées par défaut : voir [l'exécution des commandes](commands.md). Le droit d'écriture est limité à une liste blanche de requêtes Hotspot.
 
 ## Configuration du Gateway
 
@@ -33,9 +33,13 @@ Créer un fichier JSON local, appartenant à l'utilisateur système du Gateway e
   "address": "192.168.88.1:8729",
   "username": "mtandao-gateway",
   "password": "REMPLACER_PAR_UN_SECRET",
-  "timeout_seconds": 8
+  "timeout_seconds": 8,
+  "ca_file": "/etc/mtandao-gateway/router-ca.pem",
+  "tls_server_name": ""
 }
 ```
+
+`ca_file` (facultatif) désigne le certificat ou la CA du routeur à approuver, par exemple pour un certificat auto-signé : fichier régulier, non symbolique, non modifiable par le groupe ou les autres. `tls_server_name` (facultatif) remplace le nom vérifié dans le certificat (par défaut l'adresse IP, qui doit figurer dans les SAN). La vérification du certificat n'est jamais désactivée.
 
 Protéger le répertoire parent (mode 0700), puis définir :
 
