@@ -20,7 +20,9 @@ func TestRunHeartbeatStopsOnContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 	client, err := NewClient(server.URL, testToken, server.Client())
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := log.New(io.Discard, "", 0)
 	done := make(chan struct{})
@@ -28,13 +30,15 @@ func TestRunHeartbeatStopsOnContextCancellation(t *testing.T) {
 	deadline := time.After(2 * time.Second)
 	for calls.Load() == 0 {
 		select {
-		case <-deadline: t.Fatal("initial heartbeat was not sent")
+		case <-deadline:
+			t.Fatal("initial heartbeat was not sent")
 		case <-time.After(5 * time.Millisecond):
 		}
 	}
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(time.Second): t.Fatal("heartbeat runner did not stop")
+	case <-time.After(time.Second):
+		t.Fatal("heartbeat runner did not stop")
 	}
 }

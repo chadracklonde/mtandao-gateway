@@ -1,0 +1,39 @@
+[Unit]
+Description=Mtandao Gateway
+Documentation=https://github.com/chadracklonde/mtandao-gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mtandao-gateway
+Group=mtandao-gateway
+EnvironmentFile=/etc/mtandao-gateway/gateway.env
+ExecStart=/usr/local/bin/mtandao-gateway
+Restart=always
+RestartSec=5
+
+# State (command ledger) lives in /var/lib/mtandao-gateway, created with mode 0700.
+StateDirectory=mtandao-gateway
+StateDirectoryMode=0700
+UMask=0077
+
+# Hardening: the Gateway only needs outbound network access and its own state.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
